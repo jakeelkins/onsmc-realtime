@@ -2,7 +2,7 @@
 
 ![control example at 100 Hz](data/control_example.png)
 
-This repo implements my most recent paper, "Online Neural Sldiing Mode Control with Guaranteed Stability", on the RMD X8 servo in our lab using ROS2.
+This repo implements my most recent paper, "Online Neural Sliding Mode Control with Guaranteed Stability", on the RMD X8 servo in our lab using ROS2.
 
 This is specifically for the MyActuator RMD X8 1:6 like we have in the advanced robotics lab at UAH. We have the actuator hooked to a DC power supply at 24V and talk to it through a VSCom USB-CAN Plus adapter.
 
