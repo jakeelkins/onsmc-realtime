@@ -29,7 +29,7 @@ add_executable(trajectory_generator src/trajectory_generator.cpp)
 ament_target_dependencies(trajectory_generator rclcpp)
 
 add_executable(controller src/controller.cpp)
-ament_target_dependencies(controller rclcpp)
+ament_target_dependencies(controller rclcpp std_msgs)
 
 add_executable(reader src/reader.cpp)
 ament_target_dependencies(reader rclcpp)

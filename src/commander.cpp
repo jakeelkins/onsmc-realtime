@@ -485,6 +485,46 @@ void LockMemory() {
 
 int main(int argc, char * argv[])
 {
+
+  int s;
+  int stat;
+  struct sockaddr_can addr;
+  struct ifreq ifr;
+
+  struct can_frame frame;
+  int nbytes;
+  socklen_t len;
+
+  int servo_id = 0x141;
+  int can_dlc = 8;
+
+  // connect
+  s = -1;
+  stat = EXIT_SUCCESS;
+  len = sizeof(addr);
+
+  s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+
+  if (s < 0){
+      perror("Error while creating socket");
+      stat = EXIT_FAILURE;
+  }
+
+  // bind
+/* get interface index */
+  strcpy(ifr.ifr_name, "slcan0");
+  ioctl(s, SIOCGIFINDEX, &ifr);
+
+  // NOTE: this has to come after the strcpy and ioctl.
+  // this gave me fits.
+  addr.can_family  = AF_CAN;
+  addr.can_ifindex = ifr.ifr_ifindex;
+  
+  /* bind CAN socket to the given interface */
+  int bind_stat = bind(s, (struct sockaddr *)&addr, sizeof(addr));
+
+
+  // ------------------
   LockMemory();
   rclcpp::init(argc, argv);
 
@@ -493,8 +533,34 @@ int main(int argc, char * argv[])
   rt_thread.Join();
 
   // shutdown servo using the public methods
-  //node->turn_off_motor();
-  //node->disconnect(); // disconnect from servo, that is.
+  frame.can_id = servo_id;
+  frame.can_dlc = can_dlc;
+
+  // motor turn off cmnd
+  frame.data[0] = 0x81;
+  frame.data[1] = 0x00;
+  frame.data[2] = 0x00;
+  frame.data[3] = 0x00;
+  frame.data[4] = 0x00;
+  frame.data[5] = 0x00;
+  frame.data[6] = 0x00;
+  frame.data[7] = 0x00;
+
+  nbytes = sendto(s, &frame, sizeof(struct can_frame),
+          0, (struct sockaddr*)&addr, sizeof(addr));
+
+  if (nbytes <= 0){
+      perror("Error in turn off motor send");
+      stat = EXIT_FAILURE;
+  }
+
+
+  // disconnect
+  if (s >= 0){
+      close(s);
+      printf("Socket disconnected. \n");
+      //RCLCPP_INFO(this->get_logger(), "Commander disconnected from socket");
+  }
 
   rclcpp::shutdown();
   return 0;

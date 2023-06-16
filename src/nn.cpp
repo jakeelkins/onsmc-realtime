@@ -111,7 +111,8 @@ void NeuralNetwork::_random_init(mt19937 &rng, float* W, int N, int M){
     // generalized for a matrix NxM.
     // init like pytorch does, uniform ()
     //float stddev = 1/sqrt((float)N);
-    float stddev = 0.0f;
+    float stddev = 0.01f;
+    //float stddev = 0.0f;
     uniform_real_distribution<float> uni(-stddev, stddev);
 
     for (unsigned int i = 0; i<N; ++i){

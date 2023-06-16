@@ -69,6 +69,12 @@ private:
 
   float I;
 
+  float M_F;
+  float W_F;
+  float V_F;
+
+  float s;
+
   // str buffers to help
   char curr_buffer[200];
   //char save_format_str[] = "%f,%f,%f,%f,%f\n";
@@ -81,7 +87,7 @@ private:
             // open her up!
             myFile.open("/home/jake/ros2_ws/src/onsmc_rt/data/sim_out.csv");
             // put the headers
-            myFile << "t,u,xd,x,I\n";
+            myFile << "t,u,xd,x,I,M_F,W_F,V_F,s\n";
         }
   }
 
@@ -114,9 +120,15 @@ private:
 
     u = control_msg.u;
 
+    M_F = control_msg.mf;
+    W_F = control_msg.wf;
+    V_F = control_msg.vf;
+
+    s = control_msg.s;
+
     if (go_flag){
         // record when we get control
-        sprintf(curr_buffer, "%f,%f,%f,%f,%f\n", t, u, qd, q, I);
+        sprintf(curr_buffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n", t, u, qd, q, I, M_F, W_F, V_F, s);
         // write to file
         myFile << curr_buffer;
 

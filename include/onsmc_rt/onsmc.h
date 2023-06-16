@@ -11,16 +11,16 @@ class ONSMC {
     public:
 
         // ---- hypers ----
-        int hidden_dim = 5;
+        int hidden_dim = 15;
         
-        float eta = 5.2f;
+        float eta = 6.0f;
         float Lambda_val = 4.0f;
         float D = 0.0f;
-        float phi = 0.02f;
-        float H_val = 0.008f;
+        float phi = 0.1f;
+        float H_val = 0.005f;
 
-        float F_val = 0.0f;
-        float G_val = 0.0f;
+        float F_val = 0.8f;
+        float G_val = 0.6f;
 
         NeuralNetwork NN;
 

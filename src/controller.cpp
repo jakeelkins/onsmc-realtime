@@ -12,6 +12,7 @@
 // #include <utility> // std::pair
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "onsmc_rt/msg/desired_trajectory.hpp"
 #include "onsmc_rt/msg/control.hpp"
 #include "onsmc_rt/msg/state.hpp"
@@ -89,6 +90,11 @@ public:
 
     u = _u;
 
+
+    // need to subscribe to "go" flag so I can plot the learning from the very start
+    subscription_go = this->create_subscription<std_msgs::msg::Bool>(
+            "go", 10, std::bind(&Controller::go_callback, this, std::placeholders::_1));
+
     // subscribe to current state x as input
     subscription_x = this->create_subscription<onsmc_rt::msg::State>(
       "state", 10, std::bind(&Controller::state_receive_callback, this, _1));
@@ -108,10 +114,13 @@ public:
 
 private:
 
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr subscription_go;
   rclcpp::Subscription<onsmc_rt::msg::State>::SharedPtr subscription_x;
   rclcpp::Subscription<onsmc_rt::msg::DesiredTrajectory>::SharedPtr subscription_xd;
   rclcpp::Publisher<onsmc_rt::msg::Control>::SharedPtr publisher_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  bool go_flag = false;
 
   unsigned int input_dim = 7;
   unsigned int output_dim = 1;
@@ -139,6 +148,14 @@ private:
   vector<float> yd_ddot;
 
   vector<float> u;
+
+  void go_callback(const std_msgs::msg::Bool &msg){
+        // sets the flag to true
+        if (msg.data){
+            //RCLCPP_INFO_ONCE(this->get_logger(), "Go flag received: experiment start.");
+            go_flag = true;
+        }
+  }
 
 
   void state_receive_callback(const onsmc_rt::msg::State &state_msg){
@@ -177,36 +194,77 @@ private:
     //RCLCPP_INFO(this->get_logger(), "curr q: %f  curr q_dot: %f  curr qd: %f", q, q_dot, qd);
     //RCLCPP_INFO_ONCE(this->get_logger(), "input_dim: %i  hidden_dim: %i  output_dim: %i", onsmc.input_dim, onsmc.hidden_dim, onsmc.output_dim);
     
-    // ---- control calcs ----
-    // get control: puts it into u vector.
-    onsmc.get_control(u.data(), y.data(), y_dot.data(),
-                      yd.data(), yd_dot.data(), yd_ddot.data());
+    u[0] = 0.0f;
 
-    // scale
-    //u[0] = 0.12*u[0];
+    if (go_flag){
+      RCLCPP_INFO_ONCE(this->get_logger(), "Controller received go flag");
+      // ---- control calcs ----
+      // get control: puts it into u vector.
+      onsmc.get_control(u.data(), y.data(), y_dot.data(),
+                        yd.data(), yd_dot.data(), yd_ddot.data());
 
-    u[0] = 0.105f*u[0];
+      // scale
+      //u[0] = 0.12*u[0];
 
-    // deadzone inverse
-    //float dz = 0.335f;
-    float dz = 0.0f;
+      u[0] = 0.105f*u[0];
+      //u[0] = 0.02f*u[0];
 
-    if (u[0] > 0.0f){
-      u[0] = u[0] + dz;
-    } else if (u[0] < 0.0f){
-      u[0] = u[0] - dz;
-    }
+      // deadzone inverse
+      //float dz = 0.335f;
+      float dz = 0.2f;
+      //float dz = 0.0f;
 
-    
+      if (u[0] > 0.0f){
+        u[0] = u[0] + dz;
+      } else if (u[0] < 0.0f){
+        u[0] = u[0] - dz;
+      }
 
-    // clip
-    //float clip = 3.0f;
-    float clip = 1.0f;
+      
 
-    if (u[0] > clip){
-      u[0] = clip;
-    } else if (u[0] < -clip){
-      u[0] = -clip;
+      // clip
+      //float clip = 3.0f;
+      float clip = 1.335f;
+
+      if (u[0] > clip){
+        u[0] = clip;
+      } else if (u[0] < -clip){
+        u[0] = -clip;
+      }
+
+      // ONLY FOR EXPERIMENT: get norms and publish
+      // frobenius:
+      float M_F = 0.0f;
+
+      for (int i = 0; i<onsmc.output_dim; i++){
+        M_F += onsmc.M_hat[i]*onsmc.M_hat[i];
+      }
+
+      M_F = sqrt(M_F);
+
+      control_msg.mf = M_F;
+
+      float W_F = 0.0f;
+
+      for (int i = 0; i<(onsmc.output_dim*onsmc.hidden_dim); i++){
+        W_F += onsmc.NN.W[i]*onsmc.NN.W[i];
+      }
+
+      W_F = sqrt(W_F);
+
+      control_msg.wf = W_F;
+
+      float V_F = 0.0f;
+
+      for (int i = 0; i<(onsmc.input_dim*onsmc.hidden_dim); i++){
+        V_F += onsmc.NN.V[i]*onsmc.NN.V[i];
+      }
+
+      V_F = sqrt(V_F);
+
+      control_msg.vf = V_F;
+
+      control_msg.s = onsmc.s[0];
     }
 
     // ------------------------
@@ -219,9 +277,7 @@ private:
       RCLCPP_INFO_ONCE(this->get_logger(), "W[0]: %f", onsmc.NN.W[0]);
       RCLCPP_INFO_ONCE(this->get_logger(), "M_hat[0]: %f", onsmc.M_hat[0]);
     }
-    
   }
-  
 };
 
 
